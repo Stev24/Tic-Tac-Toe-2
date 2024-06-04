@@ -8,6 +8,10 @@ class Room {
         this.#board = board;
     }
 
+    deletePlayer(player) {
+        this.#players.delete(player.id);
+    }
+
     addPlayer(player) {
         if (this.#players.size >= 2) {
             console.log("Error");
@@ -66,6 +70,13 @@ class Room {
         this.#players.forEach((player)=>{
             player.sendToClient("info", "Game Starts!\n");
             player.sendToClient("info", board);
+
+            player.stopListening(()=>{
+                const opponent = this.getOpponent(player);
+                this.deletePlayer(player);
+                opponent.sendToClient("info", "Opponent left the game!");
+                opponent.sendToClient("info", this.#players.size + " players in the room");
+            })
         })
 
         const player = this.#players.values().next().value;

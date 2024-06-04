@@ -1,5 +1,3 @@
-import {getRandomLetter} from "./utils.js";
-import EventEmitter from "events";
 
 class Player {
     letter;
@@ -15,6 +13,12 @@ class Player {
     listen(callback) {
         this.connection.onData((data) => {
             callback(data);
+        });
+    }
+
+    stopListening(callback) {
+        this.connection.onClose(() => {
+            callback();
         });
     }
 

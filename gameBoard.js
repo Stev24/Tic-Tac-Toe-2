@@ -1,4 +1,3 @@
-import {getRandomLetter, takeOtherLetter} from "./utils.js";
 
 class GameBoard {
     #board;
