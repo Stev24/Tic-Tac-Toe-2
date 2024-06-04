@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container{
+            display:flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h2 {
+            margin-bottom: 100px;
+            width: 100%;
+            text-align: center;
+            color: greenyellow;
+        }
+        textarea {
+            margin-bottom: 20px;
+            height: 300px;
+        }
+        input, button {
+            width: 20%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Tic Tac Toe</h2>
+        <textarea id="output" rows="4" cols="50">1234</textarea>
+
+        <div>
+            <input id="input">
+            <button id="button" onclick="changeText()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const element = document.getElementById("output");
+
+        let id;
+        let socket = undefined;
+
+        window.onload = () => {
+            socket = new WebSocket("ws://localhost:8080");
+            let text = "";
+
+            socket.addEventListener("message", (event) => {
+                const data = event.data.split('/end');
+
+                data.forEach((line)=>{
+                    const parsed = JSON.parse(line ? line : '{"text": ""}');
+                    console.log(parsed);
+                    id = parsed.id;
+                    text += parsed.text;
+                })
+
+                element.innerHTML = text;
+                element.scrollTop = element.scrollHeight;
+            });
+        };
+
+        function changeText() {
+            const element = document.getElementById("input");
+
+            socket.send(JSON.stringify({id, type:"info", answer: element.value}));
+        }
+
+    </script>
+</body>
+
+</html>
