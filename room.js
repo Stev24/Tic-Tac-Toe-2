@@ -22,6 +22,13 @@ class Room {
             this.makeMove(player, +data.answer);
         })
 
+        player.stopListening(()=>{
+            const opponent = this.getOpponent(player);
+            this.deletePlayer(player);
+            opponent.sendToClient("info", "Opponent left the game!");
+            opponent.sendToClient("info", this.#players.size + " players in the room");
+        })
+
         if(this.#players.size === 0) {
             player.letter = getRandomLetter();
             this.#players.set(player.id, player);
@@ -70,13 +77,6 @@ class Room {
         this.#players.forEach((player)=>{
             player.sendToClient("info", "Game Starts!\n");
             player.sendToClient("info", board);
-
-            player.stopListening(()=>{
-                const opponent = this.getOpponent(player);
-                this.deletePlayer(player);
-                opponent.sendToClient("info", "Opponent left the game!");
-                opponent.sendToClient("info", this.#players.size + " players in the room");
-            })
         })
 
         const player = this.#players.values().next().value;
