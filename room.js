@@ -1,11 +1,17 @@
 import {getRandomLetter, takeOtherLetter} from "./utils.js";
+import player from "./player.js";
 
 class Room {
+    id;
     #board;
-    #players = new Map;
+    #players = new Map([]);
+    gameStarted = false;
+    gameEnded = false;
+    currentPlayerLetter = null;
 
     constructor(board) {
         this.#board = board;
+        this.id = Date.now();
     }
 
     deletePlayer(player) {
@@ -19,28 +25,43 @@ class Room {
         }
 
         player.listen((data) => {
-            this.makeMove(player, +data.answer);
-        })
+            if (data.type === "player-turn") {
+                const fieldNumber = +data.payload.answer;
+                if (fieldNumber > 0 && fieldNumber <= 9) {
+                    this.makeMove(player, fieldNumber);
+                }
+            }
+        });
 
-        player.stopListening(()=>{
+        player.stopListening(() => {
             const opponent = this.getOpponent(player);
             this.deletePlayer(player);
-            opponent.sendToClient("info", "Opponent left the game!");
-            opponent.sendToClient("info", this.#players.size + " players in the room");
+            if (opponent) {
+                opponent.sendToClient("player-disconnected", {message: "Opponent left the game!"});
+            }
         })
 
-        if(this.#players.size === 0) {
+        player.roomId = this.id;
+        player.sendToClient("player-info", {roomId: this.id, id: player.id});
+
+        if (this.#players.size === 0) {
             player.letter = getRandomLetter();
             this.#players.set(player.id, player);
             return;
         }
 
-        if(this.#players.size === 1) {
+        if (this.#players.size === 1) {
             const opponentLetter = this.#players.values().next().value.letter;
             player.letter = takeOtherLetter(opponentLetter);
-            this.#players.set(player.id ,player);
+            this.#players.set(player.id, player);
 
-            this.startGame();
+            if (!this.gameEnded) {
+                if (!this.gameStarted) {
+                    this.startGame();
+                } else {
+                    this.continueGame();
+                }
+            }
         }
     }
 
@@ -50,21 +71,21 @@ class Room {
         const winnerLetter = this.#board.checkGameState();
 
         const opponent = this.getOpponent(player);
-        console.log(opponent);
+        this.currentPlayerLetter = opponent.letter;
 
-        if(!winnerLetter) {
-            player.sendToClient("info", this.#board.displayBoard());
+        if (!winnerLetter) {
+            player.sendToClient("board-state", {board: this.#board.displayBoard()});
+            opponent.sendToClient("board-state", {board: this.#board.displayBoard()});
 
-            opponent.sendToClient("info", this.#board.displayBoard());
-            opponent.sendToClient("question", "Your turn " + opponent.letter + " ! ");
+            opponent.sendToClient("player-turn", {message: "Your turn " + opponent.letter + " ! "});
         } else {
-            player.sendToClient("info", this.#board.displayBoard());
-            player.sendToClient("info", "Game Ended!");
-            player.sendToClient("info", "This winner is " + winnerLetter);
+            player.sendToClient("board-state", {board: this.#board.displayBoard()});
+            player.sendToClient("game-over", {message: "Game Over! This winner is " + winnerLetter});
 
-            opponent.sendToClient("info", this.#board.displayBoard());
-            opponent.sendToClient("info", "Game Ended!");
-            opponent.sendToClient("info", "This winner is " + winnerLetter);
+            opponent.sendToClient("board-state", {board: this.#board.displayBoard()});
+            opponent.sendToClient("game-over", {message: "Game Over! This winner is " + winnerLetter});
+
+            this.endGame();
         }
     }
 
@@ -72,16 +93,35 @@ class Room {
         return Array.from(this.#players.values()).find(p => p.id !== player.id);
     }
 
+    getPlayerByLetter(letter) {
+        return Array.from(this.#players.values()).find(p => p.letter === letter);
+    }
+
     startGame() {
+        this.gameStarted = true;
+
         const board = this.#board.displayBoard();
-        this.#players.forEach((player)=>{
-            player.sendToClient("info", "Game Starts!\n");
-            player.sendToClient("info", board);
+        this.#players.forEach((player) => {
+            player.sendToClient("game-start", {message: "Game Starts!", board})
         })
 
-        const player = this.#players.values().next().value;
+        const currentPlayer = this.#players.values().next().value;
+        this.currentPlayerLetter = currentPlayer.letter;
+        currentPlayer.sendToClient("player-turn", {message: "Your turn " + currentPlayer.letter + " ! "});
+    }
 
-        player.sendToClient("question", "Your turn " + player.letter + " ! ");
+    continueGame() {
+        const board = this.#board.displayBoard();
+        this.#players.forEach((player) => {
+            player.sendToClient("game-continue", {message: "Game Continues!", board});
+        });
+
+        const currentPlayer = this.getPlayerByLetter(this.currentPlayerLetter);
+        currentPlayer.sendToClient("player-turn", {message: "Your turn " + currentPlayer.letter + " ! "});
+    }
+
+    endGame() {
+        this.gameEnded = true;
     }
 }
 

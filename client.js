@@ -1,76 +1,98 @@
 import * as readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
+import {stdin as input, stdout as output} from 'node:process';
 import net from "net";
-
 
 class ReadInterface {
     #readline;
+
     constructor() {
-        this.#readline = readline.createInterface({ input, output });
+        this.#readline = readline.createInterface({input, output});
     }
 
-    async askQuestion(question) {
-        return await this.#readline.question(question);
+    askQuestion(question) {
+        return this.#readline.question(question);
     }
 
+    close() {
+        this.#readline.close();
+    }
 }
 
-//store id in a file if client side crashes.
+const port = 3000;
+let playerId = null;
+let roomId = null;
+let reader = null;
 
 
-async function game() {
+const dataHandler = {
+    "hand-shake": ({client}) => {
+        client.write(JSON.stringify({type: "hand-shake", payload: {roomId}}));
+    },
+    "game-start": ({data}) => {
+        console.log(data.payload.board);
+        console.log(data.payload.message);
+    },
+    "game-continue": ({data}) => {
+        console.log(data.payload.message);
+        console.log(data.payload.board);
+    },
+    "player-disconnected": ({data}) => {
+        console.log(data.payload.message);
+    },
+    "player-turn": async ({data, client, reader}) => {
+        const answer = await reader.askQuestion(data.payload.message);
+        client.write(JSON.stringify({type: "player-turn", payload: {answer}}));
+    },
+    "board-state": ({data}) => {
+        console.log(data.payload.board);
+    },
+    "game-over": ({data}) => {
+        console.log(data.payload.message);
+    },
+    "player-info": ({data}) => {
+        roomId = data.payload.roomId;
+        playerId = data.payload.id;
+        return {roomId, playerId};
+    }
+}
 
-    const x = new ReadInterface();
-    const port = 3000;
-    let id = null;
 
-    // Create a connection to the server
-    const client = net.createConnection({ port }, () => {
+async function main() {
+
+    reader = new ReadInterface();
+    const client = net.createConnection({port}, () => {
         console.log('Connected to server');
     });
 
-    // Set encoding for data received
     client.setEncoding('utf8');
 
-    // Handle incoming data
-    client.on('data',  (data) => {
-        // End the connection after receiving the response
-
+    client.on('data', (data) => {
         data.split('/end').forEach(async (line) => {
-
             const dataToParse = line ? line : "{}"
-            const response = JSON.parse(dataToParse);
+            const data = JSON.parse(dataToParse);
 
-            if (response && response?.id) {
-                id = response.id;
+            if (data.type) {
+                dataHandler[data.type]({client, data, reader});
             }
-
-            if (response && response.type === "question") {
-                const answer  = await x.askQuestion(response.text);
-                client.write(JSON.stringify({id, type:"info", answer}));
-            }
-
-            if (response && response.type === "info") {
-                console.log(response.text);
-            }
-
         });
-
-        //client.end();
     });
 
-    // Handle client disconnection
+    // to simulate failing connection on the client side
+    setTimeout(() => {
+        client.end();
+    }, 10000);
+
     client.on('end', () => {
         console.log('Disconnected from server');
-
+        reader.close();
+        main();
     });
 
-    // Handle errors
     client.on('error', (err) => {
         console.error(`Error: ${err.message}`);
     });
 }
 
-game();
+main();
 
 

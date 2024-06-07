@@ -2,6 +2,7 @@ export class Connection {
     constructor(socket) {
         this.socket = socket;
     }
+
     sendData() {
         throw new Error("define me");
     }
@@ -14,9 +15,11 @@ export class Connection {
     onData(callback) {
         throw new Error("define me");
     }
+
     onClose(callback) {
         throw new Error("define me");
     }
+
     onError(callback) {
         throw new Error("define me");
     }

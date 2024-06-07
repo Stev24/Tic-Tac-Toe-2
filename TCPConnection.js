@@ -18,12 +18,14 @@ export class TCPConnection extends Connection {
             callback(input);
         });
     }
+
     onClose(callback) {
         this.socket.on('end', () => {
             console.log('Client disconnected');
             callback();
         });
     }
+
     onError(callback) {
         this.socket.on('error', (err) => {
             console.error(`Error: ${err.message}`);

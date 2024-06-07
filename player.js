@@ -1,11 +1,10 @@
-
 class Player {
     letter;
     id;
+    roomId;
     connection;
 
-    constructor({letter, connection}) {
-        this.letter = letter;
+    constructor({connection}) {
         this.id = Date.now();
         this.connection = connection;
     }
@@ -22,8 +21,8 @@ class Player {
         });
     }
 
-    sendToClient(type, text) {
-        this.connection.sendData({id: this.id, type, text});
+    sendToClient(type, payload) {
+        this.connection.sendData({type, payload});
     }
 }
 

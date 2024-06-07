@@ -7,8 +7,8 @@ function getRandomLetter() {
     return ["O", "X"][number];
 }
 
-function takeOtherLetter(letter){
-    if(letter === "X"){
+function takeOtherLetter(letter) {
+    if (letter === "X") {
         return "O";
     } else {
         return "X";
